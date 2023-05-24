@@ -1,0 +1,62 @@
+version: '3.2'
+
+services:
+  fluentbit:
+    image: fluent/fluent-bit
+    volumes:
+        - ./fluentbit/config:/fluent-bit/etc
+        - ./fluentbit/logs:/var/log/
+    ports:
+      - "24223:24224"
+      - "24224:24224/udp"
+    # networks:
+    #   - docker-elk
+    # logging:
+    #   driver: "json-file"
+    #   options:
+    #       max-size: 100m
+    #       max-file: "5"
+
+# networks:
+#     docker-elk:
+#       external:
+#         name: docker-elk_elk
+      # external: true
+
+  elasticsearch:
+    build:
+      context: elasticsearch/
+      args:
+        ELASTIC_VERSION: $ELASTIC_VERSION
+    volumes:
+      # z: the volume content will be shared between containers
+      # ro : container read-only
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,z
+      - ./elasticsearch:/usr/share/elasticsearch/data,z
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx512m -Xms512m"
+      ELASTIC_PASSWORD: changeme
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks
+      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+
+  kibana:
+    build:
+      context: kibana/
+      args:
+        ELASTIC_VERSION: $ELASTIC_VERSION
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,z
+    ports:
+      - "5601:5601"
+    # networks:
+    #   - efk
+    depends_on:
+      - elasticsearch
+
+# networks:
+#   elk:
+#     driver: bridge
